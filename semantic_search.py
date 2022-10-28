@@ -1,7 +1,15 @@
+import os
+
 import cohere
 import pandas as pd
 from annoy import AnnoyIndex
-from keys import key
+from dotenv import load_dotenv
+
+def get_key():
+    load_dotenv()
+    return os.getenv("COOKIE")
+
+key = get_key()
 
 df = pd.read_csv('data.csv')
 
