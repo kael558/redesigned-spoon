@@ -2,15 +2,17 @@ import cohere
 import pandas as pd
 from annoy import AnnoyIndex
 from keys import key
+import numpy as np
 
 def buildIndex():
-    df = pd.read_csv('data.csv')
+    df = pd.read_csv('data.csv', encoding="ISO-8859-1")
 
-    co = cohere.Client(key)
+    embeds = co.embed(texts=list(df['Summary']), model = 'large', truncate='right').embeddings
 
-    embeds = co.embed(texts=list(df['text'], model = 'large', truncate='right')).embeddings
+    embeds = np.array(embeds)
 
     search_index = AnnoyIndex(embeds.shape[1], 'angular')
+    print(embeds.shape[1])
 
     for i in range(len(embeds)):
         search_index.add_item(i, embeds[i])
@@ -20,7 +22,7 @@ def buildIndex():
 
 def getClosestNeighbours():
 
-    search_index = AnnoyIndex(f, 'angular')
+    search_index = AnnoyIndex(4096, 'angular')
     search_index.load('test.ann')
 
     query = 'I want a paper on astro physics'
@@ -41,4 +43,7 @@ def getClosestNeighbours():
     print(results)
 
 if __name__ == '__main__':
-    pass
+
+    co = cohere.Client(key)
+    buildIndex()
+    #getClosestNeighbours()
