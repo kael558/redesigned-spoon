@@ -1,19 +1,25 @@
+import time
 import urllib.request
 from bs4 import BeautifulSoup
 import csv
 
-subjects = ['Astrophysics', 'Mathematics', 'q-bio', 'Economics', 'Statistics']
+def download_data():
+    subjects = ['Astrophysics', 'Mathematics', 'q-bio', 'Economics', 'Statistics']
+    num_results = 100
 
+    with open('data_100.csv', 'a', newline='') as file:
+        writer = csv.writer(file, delimiter=',')
+        writer.writerow(["Subject", "Title", "Summary"])
+        for subject in subjects:
+            url = f'http://export.arxiv.org/api/query?search_query=all:%s&start=0&max_results=%s' % (subject, num_results)
+            data = urllib.request.urlopen(url).read().decode('utf-8')
+            soup = BeautifulSoup(data, "xml")
 
-with open('data.csv', 'a', newline='') as file:
-    writer = csv.writer(file, delimiter=',')
-    writer.writerow(["Subject", "Title", "Summary"])
-    for subject in subjects:
-        url = f'http://export.arxiv.org/api/query?search_query=all:%s&start=0&max_results=20' % subject
-        data = urllib.request.urlopen(url).read().decode('utf-8')
-        soup = BeautifulSoup(data, "xml")
+            entries = soup.findAll('entry')
+            for entry in entries:
+                summary = entry.find('summary').text.replace('\n', ' ')
+                writer.writerow([subject, entry.find('title').text, summary.strip()])
+            time.sleep(1)
 
-        entries = soup.findAll('entry')
-        for entry in entries:
-            summary = entry.find('summary').text.replace('\n', ' ')
-            writer.writerow([subject, entry.find('title').text, summary])
+if __name__ == '__main__':
+    download_data()

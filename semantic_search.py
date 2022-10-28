@@ -2,18 +2,23 @@ import os
 
 import cohere
 import pandas as pd
+import umap
+
 from annoy import AnnoyIndex
 import numpy as np
 from dotenv import load_dotenv
+from scipy.cluster.hierarchy import dendrogram
+from sklearn.cluster import AgglomerativeClustering
 
 def get_key():
     load_dotenv()
     return os.getenv("COHERE_KEY")
 
-key = get_key()
 
-def buildIndex():
-    df = pd.read_csv('data.csv', encoding="ISO-8859-1")
+
+
+def buildIndex(datafile: str, indexfile: str):
+    df = pd.read_csv(datafile, encoding="ISO-8859-1")
 
     embeds = co.embed(texts=list(df['Summary']), model = 'large', truncate='right').embeddings
 
@@ -26,7 +31,10 @@ def buildIndex():
         search_index.add_item(i, embeds[i])
 
     search_index.build(10)
-    search_index.save('test.ann')
+    search_index.save(indexfile)
+
+
+
 
 def getClosestNeighbours():
     df = pd.read_csv('data.csv', encoding="ISO-8859-1")
@@ -39,6 +47,7 @@ def getClosestNeighbours():
     query_embed = co.embed(texts=[query],
                         model='large',
                         truncate='right').embeddings
+
 
     # Retrieve the nearest neighbors
     similar_item_ids = search_index.get_nns_by_vector(query_embed[0],10,
@@ -54,8 +63,21 @@ def getClosestNeighbours():
     print(results)
 
 
-if __name__ == '__main__':
 
+
+
+if __name__ == '__main__':
+    key = get_key()
     co = cohere.Client(key)
     buildIndex()
     getClosestNeighbours()
+
+
+
+
+    '''title = 'Cosmic Accelerators'
+    summary = 'I discuss the scientific rationale and opportunities in the study of high energy particle accelerators away from the Earth; mostly, those outside the Solar System. I also briefly outline the features to be desired in telescopes used to probe accelerators studied by remote sensing.'
+    prompt = 'This is a paper titled ' + title + '. This is the summary: ' + summary + '. The 3 themes from this summary are:'
+    response = co.generate(prompt=prompt, p=0.0, temperature=0.0, max_tokens=50)
+    print('Prediction: {}'.format(response.generations[0].text))'''
+
