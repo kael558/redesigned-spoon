@@ -4,13 +4,14 @@ import cohere
 import pandas as pd
 import sklearn.cluster
 import umap
-
+import seaborn as sns
 from annoy import AnnoyIndex
 import numpy as np
 from dotenv import load_dotenv
 from scipy.cluster.hierarchy import dendrogram
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
+
 
 def get_key():
     load_dotenv()
@@ -20,16 +21,19 @@ def get_key():
 def getDataFrame(datafile: str) -> pd.DataFrame:
     return pd.read_csv(datafile, encoding="ISO-8859-1")
 
+
 def getEmbeddings(co: cohere.Client, df: pd.DataFrame) -> np.array:
     embeds = co.embed(texts=list(df['Summary']), model='large', truncate='right').embeddings
 
     embeds = np.array(embeds)
     return embeds
 
+
 def fitModel(embeddings: np.array):
     model = AgglomerativeClustering(distance_threshold=0, n_clusters=None)
     model = model.fit(embeddings)
     return model
+
 
 def plotDendrogram(model, **kwargs):
     # create the counts of samples under each node
@@ -51,21 +55,48 @@ def plotDendrogram(model, **kwargs):
     # Plot the corresponding dendrogram
     dendrogram(linkage_matrix, **kwargs)
 
+
 def plot2DChart(df, umap_embeds):
     df_explore = pd.DataFrame(data={'text': df['Title'], 'subject': df['Subject']})
     df_explore['x'] = umap_embeds[:, 0]
     df_explore['y'] = umap_embeds[:, 1]
-    mapping = {'Astrophysics':0, 'Mathematics':1, 'q-bio':2, 'Economics':3, 'Statistics':4}
-
-    df_explore['subject'] = df_explore['subject'].map(mapping)
 
     # Plot
-    df_explore.plot.scatter(x='x', y='y',  color='subject', colormap='viridis')
+    sns.scatterplot(data=df_explore, x='x', y='y', hue='subject', legend='full')
     plt.show()
 
 
+def saveBuild(embeds: np.array, indexfile: str):
+    search_index = AnnoyIndex(embeds.shape[1], 'angular')
+
+    for i in range(len(embeds)):
+        search_index.add_item(i, embeds[i])
+
+    search_index.build(10)
+    search_index.save(indexfile)
+
+
+def get_query_embed(co: cohere.Client, query: str):
+    query_embed = co.embed(texts=[query],
+                           model='large',
+                           truncate='right').embeddings
+
+    return np.array(query_embed)
+
+
+def get_query_nn(indexfile: str, query_embed: np.array, neighbours=100):
+    search_index = AnnoyIndex(4096, 'angular')
+    search_index.load(indexfile)
+
+    # Retrieve the nearest neighbors
+    similar_item_ids = search_index.get_nns_by_vector(query_embed[0], neighbours,
+                                                      include_distances=True)
+
+    return similar_item_ids
+
 
 def main():
+    np.random.seed(42)
     key = get_key()
     co = cohere.Client(key)
 
@@ -75,13 +106,30 @@ def main():
     # Get vectors using coheres embeddings
     embeddings = getEmbeddings(co, df)
 
-    # Cluster them using dendrograms & Plot them
-    model = fitModel(embeddings)
-    plotDendrogram(model)
+    # Save embeddings as Annoy
+    indexfile = 'index.ann'
+    saveBuild(embeddings, indexfile)
 
-    # Map each embedding to 2d
+    # Get query embeddings and append to embeddings
+    query = 'Celestial bodies and physics'
+    query_embed = get_query_embed(co, query)
+
+    # Get nearest points
+    num_nearest = 100
+    nearest_ids = get_query_nn(indexfile, query_embed, num_nearest)
+    df = df.loc[nearest_ids[0]]
+    nn_embeddings = embeddings[nearest_ids[0]]
+
+    df.loc[(num_nearest+1)] = ['Query', query, '']
+    all_embeddings = np.vstack([nn_embeddings, query_embed])
+
+    # Cluster them using dendrograms & Plot them
+    # model = fitModel(embeddings)
+    # plotDendrogram(model)
+
+    # Map the nearest embeddings to 2d
     reducer = umap.UMAP()
-    umap_embeds = reducer.fit_transform(embeddings)
+    umap_embeds = reducer.fit_transform(all_embeddings)
 
     # Plot points on 2d chart
     plot2DChart(df, umap_embeds)
@@ -90,10 +138,10 @@ def main():
 if __name__ == '__main__':
     main()
     '''
-        1. Get vectors using coheres embeddings
-        2. Cluster them using dendrograms (maybe reduce vector size using PCA/uMap) - play around with hyperparameter dimension
-        3. Get the frequency analysis of documents in each cluster
-        '''
+    1. Get vectors using coheres embeddings
+    2. Cluster them using dendrograms (maybe reduce vector size using PCA/uMap) - play around with hyperparameter dimension
+    3. Get the frequency analysis of documents in each cluster
+    '''
 
     '''
     The user can then:
