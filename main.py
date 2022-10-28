@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from scipy.cluster.hierarchy import dendrogram
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
-
+import plotly.express as px
 
 def get_key():
     load_dotenv()
@@ -57,13 +57,13 @@ def plotDendrogram(model, **kwargs):
 
 
 def plot2DChart(df, umap_embeds):
-    df_explore = pd.DataFrame(data={'text': df['Title'], 'subject': df['Subject']})
+    df_explore = pd.DataFrame(data={'title': df['Title'], 'subject': df['Subject'], 'summary': df['Summary']})
     df_explore['x'] = umap_embeds[:, 0]
     df_explore['y'] = umap_embeds[:, 1]
 
     # Plot
-    sns.scatterplot(data=df_explore, x='x', y='y', hue='subject', legend='full')
-    plt.show()
+    fig = px.scatter(df_explore, x='x', y='y', color='subject')
+    fig.show()
 
 
 def saveBuild(embeds: np.array, indexfile: str):
