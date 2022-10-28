@@ -5,4 +5,5 @@ url = 'http://export.arxiv.org/api/query?search_query=all:electron&start=0&max_r
 data = urllib.request.urlopen(url).read().decode('utf-8')
 
 soup = BeautifulSoup(data, "xml")
-print(soup.prettify())
+
+print(soup.find('summary').text)
