@@ -72,7 +72,11 @@ def plot2DChart(df, umap_embeds, clusters=[]):
     df_explore['y'] = umap_embeds[:, 1]
 
     # Plot
-    fig = px.scatter(df_explore, x='x', y='y', color='subject')
+    fig = px.scatter(df_explore, x='x', y='y', color='subject', hover_data=['title'])
+
+
+    #fig.add_trace(px.scatter(
+    #))
 
     # Add the clusters
     for cluster in clusters:
@@ -81,6 +85,7 @@ def plot2DChart(df, umap_embeds, clusters=[]):
             xref="x", yref="y",
             x0=x0, y0=y0, x1=x1, y1=y1,
             line_color="LightSeaGreen",
+
             )
 
     return fig
