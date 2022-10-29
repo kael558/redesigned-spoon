@@ -23,6 +23,13 @@ with col2:
 
 co = getCohereClient(get_key())
 
+def clear_selected_index():
+    st.session_state['selected_index'] = None
+    st.session_state['clear_sidebar'] = True
+
+if 'first' not in st.session_state:
+    st.session_state.first = True
+
 with st.sidebar:
     st.header('Summary')
     subject_placeholder = st.empty()
@@ -32,9 +39,19 @@ with st.sidebar:
     description_placeholder = st.empty()
     st.header('Link')
     link_placeholder = st.empty()
+    st.button('Clear Selected Point', on_click=clear_selected_index)
+
+    print(st.session_state['clear_sidebar'])
+
+    if st.session_state.get('clear_sidebar', False):
+        subject_placeholder.write('')
+        title_placeholder.write('')
+        description_placeholder.write('')
+        link_placeholder.write('')
+        st.session_state['clear_sidebar'] = False
 
 
-
+selected_index = st.empty()
 
 # Get vectors using coheres embeddings
 embeddings = getEmbeddings(co, df)
@@ -186,17 +203,33 @@ def get_clusters(level):
 
 
 placeholder=st.empty()
-level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
 
-clusters = get_clusters(level-1)
+if st.session_state.get('selected_index', None) is not None:
+    # this means we have selected a value and the levels should only be the number of merges for the
+    # cluster that the selected item is in (TODO: changes the max_value)
+    print('different slider')
+    print(st.session_state['selected_index'])
+    level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
+else:
+    print('standard slider')
+    level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
+
+clusters = get_clusters(level - 1)
 
 with placeholder.container():
     # Plot points on 2d chart
     fig = plot2DChart(df, umap_embeds, clusters)
     selected_point = plotly_events(fig)
-    if len(selected_point) > 0:
-        data = getData(selected_point[0]['x'], selected_point[0]['y'], umap_embeds, df)
+    if len(selected_point) > 0 and (st.session_state.get('selected_index', None) is not None
+                                    or st.session_state.first or st.session_state.get('old_selected_point', None) != selected_point
+                                    ):
+        selected_x = selected_point[0]['x']
+        selected_y = selected_point[0]['y']
+        data = getData(selected_x, selected_y, umap_embeds, df)
+        st.session_state['selected_index'] = data['index']
         subject_placeholder.write(data['Subject'])
         title_placeholder.write(data['Title'])
         description_placeholder.write(data['Summary'])
         link_placeholder.write(data['Link'])
+        st.session_state.first = False
+        st.session_state.old_selected_point = selected_point
