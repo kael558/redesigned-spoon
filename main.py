@@ -84,9 +84,8 @@ def plot2DChart(df, umap_embeds, clusters=[]):
             )
 
     return fig
-    #fig.show()
 
-
+@st.cache
 def saveBuild(embeds: np.array, indexfile: str):
     search_index = AnnoyIndex(embeds.shape[1], 'angular')
 
