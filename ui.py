@@ -32,7 +32,7 @@ nearest_ids = get_query_nn(indexfile, query_embed, num_nearest)
 df = df.loc[nearest_ids[0]]
 nn_embeddings = embeddings[nearest_ids[0]]
 
-df.loc[(num_nearest+1)] = ['Query', query, '', '']
+df.loc[(num_nearest+1)] = ['Query', query, '']
 all_embeddings = np.vstack([nn_embeddings, query_embed])
 
 # Cluster them using dendrograms & Plot them
