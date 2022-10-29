@@ -1,5 +1,9 @@
 import os
 
+from collections import Counter
+import re
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
 import cohere
 import pandas as pd
 import sklearn.cluster
@@ -13,6 +17,7 @@ from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
 import plotly.express as px
 import streamlit as st
+import plotly.graph_objects as go
 
 @st.cache
 def get_key():
@@ -23,7 +28,7 @@ def get_key():
 def getCohereClient(key):
     return cohere.Client(key)
 
-@st.cache
+@st.cache(allow_output_mutation=False)
 def getDataFrame(datafile: str) -> pd.DataFrame:
     return pd.read_csv(datafile, encoding="ISO-8859-1")
 
@@ -66,29 +71,90 @@ def plotDendrogram(model, **kwargs):
     return linkage_matrix
 
 
-def plot2DChart(df, umap_embeds, clusters=[]):
+def plot2DChart(df, umap_embeds, clusters=None):
+    if clusters is None:
+        clusters = {}
     df_explore = pd.DataFrame(data={'title': df['Title'], 'subject': df['Subject'], 'summary': df['Summary']})
     df_explore['x'] = umap_embeds[:, 0]
     df_explore['y'] = umap_embeds[:, 1]
 
+    #mapping = {'Astrophysics':0, 'Mathematics':1, 'q-bio':2, 'Economics':3, 'Statistics':4, 'Query': 5}
+    #df_explore['subject'] = df_explore['subject'].map(mapping)
+
     # Plot
-    fig = px.scatter(df_explore, x='x', y='y', color='subject', hover_data=['title'])
+    fig = px.scatter(df_explore, x='x', y='y', color='subject', hover_data=['title'], render_mode='')
 
 
-    #fig.add_trace(px.scatter(
-    #))
+
+    for cluster in clusters.values():
+        high_freq_words = str(list({x: count for x, count in cluster[2].items() if count >= 3}.keys())[:10])
+        fig.add_trace(go.Scatter(
+            x=cluster[0],
+            y=cluster[1],
+            fill="toself",
+            mode='lines',
+            text=high_freq_words,
+            opacity=0.5,
+            showlegend=False
+
+        ))
+
+    fig.data = fig.data[::-1]
+
+    '''fig.add_trace(go.Scatter(x=df_explore['x'],
+                             y=df_explore['y'],
+                             mode="markers",
+                             marker_color=df_explore['subject'],
+                             text=df_explore['title'],
+                             showlegend=True))'''
+
 
     # Add the clusters
-    for cluster in clusters:
+    ''' for cluster in clusters:
         x0, y0, x1, y1 = cluster
         fig.add_shape(type="circle",
             xref="x", yref="y",
             x0=x0, y0=y0, x1=x1, y1=y1,
             line_color="LightSeaGreen",
 
-            )
+            )'''
 
     return fig
+
+@st.cache
+def getWordFrequencies():
+    stopWords = set(stopwords.words("english"))
+    df = getDataFrame('data_100.csv')
+    df = df.copy(deep=True)
+
+    def is_not_stop_word(word: str) -> bool:
+        if len(word) == 1:
+            return False
+        return word not in stopWords
+
+    def does_not_have_special_chars(word: str) -> bool:
+        return bool(re.search('^[a-z0-9]*$', word))
+
+    def filter_stop_words(summary: str) -> list:
+        all_words_lower_case = word_tokenize(summary.lower())
+        words = list(filter(lambda s: is_not_stop_word(s) and does_not_have_special_chars(s), all_words_lower_case))
+        return words
+
+    def get_word_count(words: list) -> dict:
+        return Counter(words)
+
+    df['Words'] = df['Summary'].apply(filter_stop_words)
+    df['Word Count'] = df['Words'].apply(get_word_count)
+
+    x = df['Word Count'].values
+
+    dictionary = {}
+    i = 0
+    for k in x:
+        dictionary[i] = k
+        i+=1
+
+    return dictionary
 
 @st.cache
 def saveBuild(embeds: np.array, indexfile: str):
@@ -126,7 +192,7 @@ def main():
     co = cohere.Client(key)
 
     # Get dataframe
-    df = getDataframe('data_100.csv')
+    df = getDataFrame('data_100.csv')
 
     # Get vectors using coheres embeddings
     embeddings = getEmbeddings(co, df)

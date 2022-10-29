@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
+
 from main import *
 import copy
 
@@ -44,8 +45,12 @@ model = fitModel(nn_embeddings)
 # Map the nearest embeddings to 2d
 umap_embeds = getUMAPEmbeddings(all_embeddings)
 
+# Get the word frequencies
+word_frequencies = getWordFrequencies()
+
 # level 0 = show each doc as own cluster, level n = 1 cluster
 def get_clusters(level):
+    word_frequencies_combined = copy.deepcopy(word_frequencies)
     cluster_combine_order = copy.deepcopy(model.children_)
 
     cluster_mappings = dict()
@@ -54,29 +59,73 @@ def get_clusters(level):
 
     n = len(cluster_mappings)
     for i in range(level):
-        values = cluster_combine_order[0]
+        indicies_of_merged_clusters = cluster_combine_order[0]
         cluster_combine_order = np.delete(cluster_combine_order, 0, axis=0)
-        cluster_mappings[n] = cluster_mappings[values[0]] + cluster_mappings[values[1]]
-        cluster_mappings.pop(values[0])
-        cluster_mappings.pop(values[1])
+        cluster_mappings[n] = cluster_mappings.pop(indicies_of_merged_clusters[0]) \
+                              + cluster_mappings.pop(indicies_of_merged_clusters[1])
+
+        word_frequencies_combined[n] = word_frequencies_combined.pop(indicies_of_merged_clusters[0]) \
+                                       + word_frequencies_combined.pop(indicies_of_merged_clusters[1])
+
         n += 1
 
-    clusters = []
-    for v in cluster_mappings.values():
-        (x0, y0), (x1, y1) = umap_embeds[v[0]], umap_embeds[v[0]]
-        for i in v:
-            x0 = min(umap_embeds[i][0], x0)
-            y0 = min(umap_embeds[i][1], y0)
-            x1 = max(umap_embeds[i][0], x1)
-            y1 = max(umap_embeds[i][1], y1)
-        clusters.append(tuple([x0, y0, x1, y1]))
-    return clusters
+    def convex_hull(points):
+        """Computes the convex hull of a set of 2D points.
+
+        Input: an iterable sequence of (x, y) pairs representing the points.
+        Output: a list of vertices of the convex hull in counter-clockwise order,
+          starting from the vertex with the lexicographically smallest coordinates.
+        Implements Andrew's monotone chain algorithm. O(n log n) complexity.
+        """
+
+        # Sort the points lexicographically (tuples are compared lexicographically).
+        # Remove duplicates to detect the case we have just one unique point.
+        points = sorted(set(points))
+
+        # Boring case: no points or a single point, possibly repeated multiple times.
+        if len(points) <= 1:
+            return points
+
+        # 2D cross product of OA and OB vectors, i.e. z-component of their 3D cross product.
+        # Returns a positive value, if OAB makes a counter-clockwise turn,
+        # negative for clockwise turn, and zero if the points are collinear.
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+        # Build lower hull
+        lower = []
+        for p in points:
+            while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+                lower.pop()
+            lower.append(p)
+
+        # Build upper hull
+        upper = []
+        for p in reversed(points):
+            while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+                upper.pop()
+            upper.append(p)
+
+        # Concatenation of the lower and upper hulls gives the convex hull.
+        # Last point of each list is omitted because it is repeated at the beginning of the other list.
+        return lower[:-1] + upper[:-1]
+
+    # Calculate boundaries
+    for k in cluster_mappings.keys():
+        cluster_mappings[k] = map(lambda i: (umap_embeds[i][0], umap_embeds[i][1]),cluster_mappings[k])
+        cluster_mappings[k] = convex_hull(cluster_mappings[k])
+        x_list, y_list = [], []
+        for x, y in cluster_mappings[k]:
+            x_list.append(x)
+            y_list.append(y)
+        cluster_mappings[k] = (x_list, y_list, word_frequencies_combined[k])
+
+    return cluster_mappings
 
 placeholder=st.empty()
 level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
 
 clusters = get_clusters(level-1)
-print(clusters)
 
 with placeholder.container():
     # Plot points on 2d chart
