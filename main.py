@@ -12,14 +12,15 @@ from scipy.cluster.hierarchy import dendrogram
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
 import plotly.express as px
+from data_loader import getDataframe
+
 
 def get_key():
     load_dotenv()
     return os.getenv("COHERE_KEY")
 
 
-def getDataFrame(datafile: str) -> pd.DataFrame:
-    return pd.read_csv(datafile, encoding="ISO-8859-1")
+
 
 
 def getEmbeddings(co: cohere.Client, df: pd.DataFrame) -> np.array:
@@ -101,12 +102,12 @@ def main():
     co = cohere.Client(key)
 
     # Get dataframe
-    df = getDataFrame('data_100.csv')
+    df = getDataframe('data_100.csv')
 
     # Get vectors using coheres embeddings
     embeddings = getEmbeddings(co, df)
 
-    # Save embeddings as Annoy
+    # Save embeddings
     indexfile = 'index.ann'
     saveBuild(embeddings, indexfile)
 

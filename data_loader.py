@@ -1,7 +1,12 @@
 import time
 import urllib.request
+
+import pandas as pd
 from bs4 import BeautifulSoup
 import csv
+
+def getDataframe(datafile: str) -> pd.DataFrame:
+    return pd.read_csv(datafile, encoding="ISO-8859-1")
 
 def download_data():
     subjects = ['Astrophysics', 'Mathematics', 'q-bio', 'Economics', 'Statistics']
