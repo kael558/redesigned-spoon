@@ -87,7 +87,7 @@ def plot2DChart(df, umap_embeds, clusters=None):
     #df_explore['subject'] = df_explore['subject'].map(mapping)
 
     # Plot
-    fig = px.scatter(df_explore, x='x', y='y', color='subject', hover_data=['title'], render_mode='')
+    fig = px.scatter(df_explore, x='x', y='y', color='subject', hover_data=['title'])
 
     for cluster in clusters.values():
         high_freq_words = str(list({x: count for x, count in cluster[2].items() if count >= 3}.keys())[:10])

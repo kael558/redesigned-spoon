@@ -65,6 +65,28 @@ umap_embeds = getUMAPEmbeddings(all_embeddings)
 # Get the word frequencies
 word_frequencies = getWordFrequencies()
 
+# get the levels where this paper's cluster has another paper added to it
+@st.cache
+def get_possible_levels(cluster_index):
+    levels = [0]
+
+    cluster_mappings = dict()
+
+    for cluster in model.labels_:
+        cluster_mappings[cluster] = [cluster]
+
+    total_combinations = len(model.children_)
+    n = len(cluster_mappings)
+    for i in range(total_combinations):
+        indicies_of_merged_clusters = model.children_[i]
+
+        cluster_mappings[n] = cluster_mappings.pop(indicies_of_merged_clusters[0]) \
+                              + cluster_mappings.pop(indicies_of_merged_clusters[1])
+        if cluster_index in cluster_mappings[n]:
+            levels.append(i)
+        n+=1
+    return {k: v for k, v in enumerate(levels)}
+
 # level 0 = show each doc as own cluster, level n = 1 cluster
 @st.cache
 def get_clusters(level):
@@ -77,8 +99,8 @@ def get_clusters(level):
 
     n = len(cluster_mappings)
     for i in range(level):
-        indicies_of_merged_clusters = cluster_combine_order[0]
-        cluster_combine_order = np.delete(cluster_combine_order, 0, axis=0)
+        indicies_of_merged_clusters = cluster_combine_order[i]
+        #cluster_combine_order = np.delete(cluster_combine_order, 0, axis=0)
         cluster_mappings[n] = cluster_mappings.pop(indicies_of_merged_clusters[0]) \
                               + cluster_mappings.pop(indicies_of_merged_clusters[1])
 
@@ -136,9 +158,10 @@ def get_clusters(level):
         for x, y in cluster_mappings[k]:
             x_list.append(x)
             y_list.append(y)
+
         if len(x_list) == 2:
             # inv_slope = (x_list[1]-x_list[0])/(y_list[1]-y_list[0])
-            dx = (y_list[1] - y_list[0]) * 0.1
+            dx = -(y_list[1] - y_list[0]) * 0.1
             dy = (x_list[1] - x_list[0]) * 0.1
             x_list[0] += dx
             y_list[0] += dy
@@ -149,12 +172,18 @@ def get_clusters(level):
             x_list.append(x_list[1]-2*dx)
             y_list.append(y_list[1]-2*dy)
 
+            x_list.append(x_list[0] - 2 * dx)
+            y_list.append(y_list[0] - 2 * dy)
+
         x_list.append(x_list[0])
         y_list.append(y_list[0])
 
         cluster_mappings[k] = (x_list, y_list, word_frequencies_combined[k])
 
     return cluster_mappings
+
+
+
 
 placeholder=st.empty()
 level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
