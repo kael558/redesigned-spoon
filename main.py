@@ -12,27 +12,39 @@ from scipy.cluster.hierarchy import dendrogram
 from sklearn.cluster import AgglomerativeClustering
 import matplotlib.pyplot as plt
 import plotly.express as px
+import streamlit as st
 
+@st.cache
 def get_key():
     load_dotenv()
     return os.getenv("COHERE_KEY")
 
+@st.cache
+def getCohereClient(key):
+    return cohere.Client(key)
 
+@st.cache
 def getDataFrame(datafile: str) -> pd.DataFrame:
     return pd.read_csv(datafile, encoding="ISO-8859-1")
 
-
+@st.cache
 def getEmbeddings(co: cohere.Client, df: pd.DataFrame) -> np.array:
     embeds = co.embed(texts=list(df['Summary']), model='large', truncate='right').embeddings
 
     embeds = np.array(embeds)
     return embeds
 
-
+@st.cache
 def fitModel(embeddings: np.array):
     model = AgglomerativeClustering(distance_threshold=0, n_clusters=None)
     model = model.fit(embeddings)
     return model
+
+@st.cache
+def getUMAPEmbeddings(embeddings: np.array):
+    # Map the nearest embeddings to 2d
+    reducer = umap.UMAP()
+    return reducer.fit_transform(embeddings)
 
 
 def plotDendrogram(model, **kwargs):
@@ -52,18 +64,31 @@ def plotDendrogram(model, **kwargs):
         [model.children_, model.distances_, counts]
     ).astype(float)
 
+    return linkage_matrix
+
     # Plot the corresponding dendrogram
-    dendrogram(linkage_matrix, **kwargs)
+    #return dendrogram(linkage_matrix, **kwargs)
 
 
-def plot2DChart(df, umap_embeds):
+def plot2DChart(df, umap_embeds, clusters=[]):
     df_explore = pd.DataFrame(data={'title': df['Title'], 'subject': df['Subject'], 'summary': df['Summary']})
     df_explore['x'] = umap_embeds[:, 0]
     df_explore['y'] = umap_embeds[:, 1]
 
     # Plot
     fig = px.scatter(df_explore, x='x', y='y', color='subject')
-    fig.show()
+
+    # Add the clusters
+    for cluster in clusters:
+        x0, y0, x1, y1 = cluster
+        fig.add_shape(type="circle",
+            xref="x", yref="y",
+            x0=x0, y0=y0, x1=x1, y1=y1,
+            line_color="LightSeaGreen",
+            )
+
+    return fig
+    #fig.show()
 
 
 def saveBuild(embeds: np.array, indexfile: str):
@@ -75,7 +100,7 @@ def saveBuild(embeds: np.array, indexfile: str):
     search_index.build(10)
     search_index.save(indexfile)
 
-
+@st.cache
 def get_query_embed(co: cohere.Client, query: str):
     query_embed = co.embed(texts=[query],
                            model='large',
@@ -83,7 +108,7 @@ def get_query_embed(co: cohere.Client, query: str):
 
     return np.array(query_embed)
 
-
+@st.cache
 def get_query_nn(indexfile: str, query_embed: np.array, neighbours=100):
     search_index = AnnoyIndex(4096, 'angular')
     search_index.load(indexfile)
@@ -108,7 +133,7 @@ def main():
 
     # Save embeddings as Annoy
     indexfile = 'index.ann'
-    saveBuild(embeddings, indexfile)
+    #saveBuild(embeddings, indexfile)
 
     # Get query embeddings and append to embeddings
     query = 'Celestial bodies and physics'
@@ -124,8 +149,8 @@ def main():
     all_embeddings = np.vstack([nn_embeddings, query_embed])
 
     # Cluster them using dendrograms & Plot them
-    # model = fitModel(embeddings)
-    # plotDendrogram(model)
+    model = fitModel(embeddings)
+    linkages = plotDendrogram(model)
 
     # Map the nearest embeddings to 2d
     reducer = umap.UMAP()
