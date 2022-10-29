@@ -70,11 +70,12 @@ def plotDendrogram(model, **kwargs):
 
     return linkage_matrix
 
+@st.cache
 def getData(x, y, umap_embeds, df):
     index = np.argwhere(np.all((umap_embeds-np.array([x, y]))==0, axis=1))
     return df.iloc[index[0][0]]
 
-
+@st.cache
 def plot2DChart(df, umap_embeds, clusters=None):
     if clusters is None:
         clusters = {}
@@ -87,8 +88,6 @@ def plot2DChart(df, umap_embeds, clusters=None):
 
     # Plot
     fig = px.scatter(df_explore, x='x', y='y', color='subject', hover_data=['title'], render_mode='')
-
-
 
     for cluster in clusters.values():
         high_freq_words = str(list({x: count for x, count in cluster[2].items() if count >= 3}.keys())[:10])

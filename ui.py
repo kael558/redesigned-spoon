@@ -10,13 +10,16 @@ import plotly.express as px
 from main import *
 import copy
 
+# Get dataframe
+df = getDataFrame('data_100_with_link.csv')
+
 st.title('Arvix Semantic Paper Searcher')
 col1, col2 = st.columns(spec=[3, 2])
 
 with col1:
     query = st.text_input('Please input your query here: ', 'Celestial bodies and physics')
 with col2:
-    num_nearest = int(st.number_input('Please input the number of papers to find: ', value=100))
+    num_nearest = int(st.number_input('Please input the number of papers to find: ', value=100, min_value=1, max_value=len(df)))
 
 co = getCohereClient(get_key())
 
@@ -31,8 +34,7 @@ with st.sidebar:
     link_placeholder = st.empty()
 
 
-# Get dataframe
-df = getDataFrame('data_100_with_link.csv')
+
 
 # Get vectors using coheres embeddings
 embeddings = getEmbeddings(co, df)
@@ -64,6 +66,7 @@ umap_embeds = getUMAPEmbeddings(all_embeddings)
 word_frequencies = getWordFrequencies()
 
 # level 0 = show each doc as own cluster, level n = 1 cluster
+@st.cache
 def get_clusters(level):
     word_frequencies_combined = copy.deepcopy(word_frequencies)
     cluster_combine_order = copy.deepcopy(model.children_)
@@ -133,6 +136,22 @@ def get_clusters(level):
         for x, y in cluster_mappings[k]:
             x_list.append(x)
             y_list.append(y)
+        if len(x_list) == 2:
+            # inv_slope = (x_list[1]-x_list[0])/(y_list[1]-y_list[0])
+            dx = (y_list[1] - y_list[0]) * 0.1
+            dy = (x_list[1] - x_list[0]) * 0.1
+            x_list[0] += dx
+            y_list[0] += dy
+
+            x_list[1] += dx
+            y_list[1] += dy
+
+            x_list.append(x_list[1]-2*dx)
+            y_list.append(y_list[1]-2*dy)
+
+        x_list.append(x_list[0])
+        y_list.append(y_list[0])
+
         cluster_mappings[k] = (x_list, y_list, word_frequencies_combined[k])
 
     return cluster_mappings
