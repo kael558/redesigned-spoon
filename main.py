@@ -46,7 +46,6 @@ def getUMAPEmbeddings(embeddings: np.array):
     reducer = umap.UMAP()
     return reducer.fit_transform(embeddings)
 
-
 def plotDendrogram(model, **kwargs):
     # create the counts of samples under each node
     counts = np.zeros(model.children_.shape[0])
@@ -65,9 +64,6 @@ def plotDendrogram(model, **kwargs):
     ).astype(float)
 
     return linkage_matrix
-
-    # Plot the corresponding dendrogram
-    #return dendrogram(linkage_matrix, **kwargs)
 
 
 def plot2DChart(df, umap_embeds, clusters=[]):
