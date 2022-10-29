@@ -65,6 +65,10 @@ def plotDendrogram(model, **kwargs):
 
     return linkage_matrix
 
+def getData(x, y, umap_embeds, df):
+    index = np.argwhere(np.all((umap_embeds-np.array([x, y]))==0, axis=1))
+    return df.iloc[index[0][0]]
+
 
 def plot2DChart(df, umap_embeds, clusters=[]):
     df_explore = pd.DataFrame(data={'title': df['Title'], 'subject': df['Subject'], 'summary': df['Summary']})
