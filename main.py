@@ -126,12 +126,12 @@ def main():
     co = cohere.Client(key)
 
     # Get dataframe
-    df = getDataFrame('data_100.csv')
+    df = getDataframe('data_100.csv')
 
     # Get vectors using coheres embeddings
     embeddings = getEmbeddings(co, df)
 
-    # Save embeddings as Annoy
+    # Save embeddings
     indexfile = 'index.ann'
     #saveBuild(embeddings, indexfile)
 
