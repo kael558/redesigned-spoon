@@ -41,8 +41,6 @@ with st.sidebar:
     link_placeholder = st.empty()
     st.button('Clear Selected Point', on_click=clear_selected_index)
 
-    print(st.session_state['clear_sidebar'])
-
     if st.session_state.get('clear_sidebar', False):
         subject_placeholder.write('')
         title_placeholder.write('')
@@ -178,11 +176,8 @@ placeholder=st.empty()
 if st.session_state.get('selected_index', None) is not None:
     # this means we have selected a value and the levels should only be the number of merges for the
     # cluster that the selected item is in (TODO: changes the max_value)
-    print('different slider')
-    print(st.session_state['selected_index'])
     level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
 else:
-    print('standard slider')
     level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
 
 clusters = get_clusters(level - 1)
