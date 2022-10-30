@@ -14,7 +14,7 @@ import copy
 
 df = getDataFrame('data_100_with_link.csv')
 
-st.title('arXiv Semantic Paper Searcher')
+st.title('Semantic Paper Searcher')
 col1, col2 = st.columns(spec=[3, 2])
 
 with col1:
