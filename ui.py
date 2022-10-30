@@ -11,45 +11,43 @@ from main import *
 import copy
 
 # Get dataframe
+
 df = getDataFrame('data_100_with_link.csv')
 
-st.title('Arvix Semantic Paper Searcher')
+st.title('arXiv Semantic Paper Searcher')
 col1, col2 = st.columns(spec=[3, 2])
 
 with col1:
     query = st.text_input('Please input your query here: ', 'Celestial bodies and physics')
 with col2:
-    num_nearest = int(st.number_input('Please input the number of papers to find: ', value=100, min_value=1, max_value=len(df)))
+    num_nearest = int(
+        st.number_input('Please input the number of papers to find: ', value=100, min_value=1, max_value=len(df)))
 
 co = getCohereClient(get_key())
 
-def clear_selected_index():
-    st.session_state['selected_index'] = None
-    st.session_state['clear_sidebar'] = True
-
-if 'first' not in st.session_state:
-    st.session_state.first = True
-
 with st.sidebar:
+    print("Sidebar init")
+    st.session_state['first_run'] = True
     st.header('Summary')
+    # if not st.session_state['selected_index']:
     subject_placeholder = st.empty()
     st.header('Title')
+    # if not st.session_state['selected_index']:
     title_placeholder = st.empty()
     st.header('Summary')
+    # if not st.session_state['selected_index']:
     description_placeholder = st.empty()
     st.header('Link')
+    # if not st.session_state['selected_index']:
     link_placeholder = st.empty()
-    st.button('Clear Selected Point', on_click=clear_selected_index)
-
-    if st.session_state.get('clear_sidebar', False):
-        subject_placeholder.write('')
-        title_placeholder.write('')
-        description_placeholder.write('')
-        link_placeholder.write('')
-        st.session_state['clear_sidebar'] = False
 
 
-selected_index = st.empty()
+    def clear():
+        if st.session_state.get('selected_point', None):
+            st.session_state['selected_point'] = None
+
+
+    st.button(label='Clear Selected', on_click=clear)
 
 # Get vectors using coheres embeddings
 embeddings = getEmbeddings(co, df)
@@ -64,6 +62,8 @@ query_embed = get_query_embed(co, query)
 # Get nearest points
 nearest_ids = get_query_nn(indexfile, query_embed, num_nearest)
 df = df.loc[nearest_ids[0]].reset_index()
+df.rename(columns={'index': 'prev_index'}, inplace=True)
+
 nn_embeddings = embeddings[nearest_ids[0]]
 
 df.loc[num_nearest] = [-1, 'Query', query, '', '']
@@ -72,7 +72,7 @@ all_embeddings = np.vstack([nn_embeddings, query_embed])
 # Cluster them using dendrograms & Plot them
 model = fitModel(nn_embeddings)
 
-#linkages = plotDendrogram(model)
+# linkages = plotDendrogram(model)
 
 # Map the nearest embeddings to 2d
 umap_embeds = getUMAPEmbeddings(all_embeddings)
@@ -80,9 +80,10 @@ umap_embeds = getUMAPEmbeddings(all_embeddings)
 # Get the word frequencies
 word_frequencies = getWordFrequencies()
 
+
 # get the levels where this paper's cluster has another paper added to it
 @st.cache
-def get_possible_levels(cluster_index):
+def get_possible_levels(paper_index):
     levels = [0]
 
     cluster_mappings = dict()
@@ -97,14 +98,17 @@ def get_possible_levels(cluster_index):
 
         cluster_mappings[n] = cluster_mappings.pop(indicies_of_merged_clusters[0]) \
                               + cluster_mappings.pop(indicies_of_merged_clusters[1])
-        if cluster_index in cluster_mappings[n]:
+
+        if paper_index in cluster_mappings[n]:
             levels.append(i)
-        n+=1
+        n += 1
+    levels.append(num_nearest - 1)
     return {k: v for k, v in enumerate(levels)}
+
 
 # level 0 = show each doc as own cluster, level n = 1 cluster
 @st.cache
-def get_clusters(level):
+def get_clusters(level, query):
     word_frequencies_combined = copy.deepcopy(word_frequencies)
     cluster_combine_order = copy.deepcopy(model.children_)
 
@@ -115,7 +119,7 @@ def get_clusters(level):
     n = len(cluster_mappings)
     for i in range(level):
         indicies_of_merged_clusters = cluster_combine_order[i]
-        #cluster_combine_order = np.delete(cluster_combine_order, 0, axis=0)
+        # cluster_combine_order = np.delete(cluster_combine_order, 0, axis=0)
         cluster_mappings[n] = cluster_mappings.pop(indicies_of_merged_clusters[0]) \
                               + cluster_mappings.pop(indicies_of_merged_clusters[1])
 
@@ -167,25 +171,35 @@ def get_clusters(level):
 
     # Calculate boundaries
     for k in cluster_mappings.keys():
-        cluster_mappings[k] = map(lambda i: (umap_embeds[i][0], umap_embeds[i][1]),cluster_mappings[k])
+        cluster_mappings[k] = map(lambda i: (umap_embeds[i][0], umap_embeds[i][1]), cluster_mappings[k])
         cluster_mappings[k] = convex_hull(cluster_mappings[k])
         x_list, y_list = [], []
         for x, y in cluster_mappings[k]:
             x_list.append(x)
             y_list.append(y)
 
-        if len(x_list) == 2:
-            # inv_slope = (x_list[1]-x_list[0])/(y_list[1]-y_list[0])
-            dx = -(y_list[1] - y_list[0]) * 0.1
-            dy = (x_list[1] - x_list[0]) * 0.1
+        if len(x_list) == 2:  # changing line into small rectangles
+
+            dx = -0.1 * (y_list[1] - y_list[0])
+            if dx < 0:
+                dx = max(-0.1, dx)
+            else:
+                dx = min(0.1, dx)
+
+            dy = 0.1 * (x_list[1] - x_list[0])
+            if dy < 0:
+                dy = max(-0.1, dy)
+            else:
+                dy = min(0.1, dy)
+
             x_list[0] += dx
             y_list[0] += dy
 
             x_list[1] += dx
             y_list[1] += dy
 
-            x_list.append(x_list[1]-2*dx)
-            y_list.append(y_list[1]-2*dy)
+            x_list.append(x_list[1] - 2 * dx)
+            y_list.append(y_list[1] - 2 * dy)
 
             x_list.append(x_list[0] - 2 * dx)
             y_list.append(y_list[0] - 2 * dy)
@@ -198,33 +212,53 @@ def get_clusters(level):
     return cluster_mappings
 
 
+placeholder = st.empty()
+if st.session_state.get('selected_point', None):
 
+    # Get clusters
+    selected_id = st.session_state.get('selected_point', None)['index']
+    level_map = get_possible_levels(selected_id)
 
-placeholder=st.empty()
+    print("Selected point non-null", selected_id, level_map)
 
-if st.session_state.get('selected_index', None) is not None:
-    # this means we have selected a value and the levels should only be the number of merges for the
-    # cluster that the selected item is in (TODO: changes the max_value)
-    level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
+    level = st.slider('Hierarchical cluster slider', min_value=0, max_value=len(level_map) - 1, step=1, value=1)
+    clusters = get_clusters(level_map[level], query)
+
+    # Write data
+    subject_placeholder.write(st.session_state['selected_point']['data']['Subject'])
+    title_placeholder.write(st.session_state['selected_point']['data']['Title'])
+    description_placeholder.write(st.session_state['selected_point']['data']['Summary'])
+    link_placeholder.write(st.session_state['selected_point']['data']['Link'])
+
 else:
+    print("Selected point is null")
     level = st.slider('Hierarchical cluster slider', min_value=0, max_value=num_nearest, step=1, value=num_nearest)
+    clusters = get_clusters(level - 1, query)
 
-clusters = get_clusters(level - 1)
+    subject_placeholder.write('')
+    title_placeholder.write('')
+    description_placeholder.write('')
+    link_placeholder.write('')
 
 with placeholder.container():
     # Plot points on 2d chart
     fig = plot2DChart(df, umap_embeds, clusters)
     selected_point = plotly_events(fig)
-    if len(selected_point) > 0 and (st.session_state.get('selected_index', None) is not None
-                                    or st.session_state.first or st.session_state.get('old_selected_point', None) != selected_point
-                                    ):
+    if len(selected_point) > 0 and \
+            (st.session_state.get('prev_pointIndex', None) is None or
+             st.session_state.get('prev_pointIndex', None) != selected_point[0]['pointIndex']):
         selected_x = selected_point[0]['x']
         selected_y = selected_point[0]['y']
-        data = getData(selected_x, selected_y, umap_embeds, df)
-        st.session_state['selected_index'] = data['index']
-        subject_placeholder.write(data['Subject'])
-        title_placeholder.write(data['Title'])
-        description_placeholder.write(data['Summary'])
-        link_placeholder.write(data['Link'])
-        st.session_state.first = False
-        st.session_state.old_selected_point = selected_point
+
+        index = getIndexFromXY(selected_x, selected_y, umap_embeds, df)
+        data = df.iloc[index[0][0]]
+
+        if st.session_state.get('selected_point', None):
+            st.session_state['prev_pointIndex'] = st.session_state['selected_point']['pointIndex']
+
+        st.session_state['selected_point'] = selected_point[0]
+        st.session_state['selected_point']['index'] = index
+        st.session_state['selected_point']['data'] = data
+        print("Point is selected: ", st.session_state['selected_point'])
+
+        st.experimental_rerun()

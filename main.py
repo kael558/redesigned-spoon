@@ -71,20 +71,24 @@ def plotDendrogram(model, **kwargs):
     return linkage_matrix
 
 @st.cache
-def getData(x, y, umap_embeds, df):
+def getIndexFromXY(x, y, umap_embeds, df):
     index = np.argwhere(np.all((umap_embeds-np.array([x, y]))==0, axis=1))
-    return df.iloc[index[0][0]]
+    return index
+    #return df.iloc[index[0][0]]
+
+
 
 @st.cache
 def plot2DChart(df, umap_embeds, clusters=None):
     if clusters is None:
         clusters = {}
+
     df_explore = pd.DataFrame(data={'title': df['Title'], 'subject': df['Subject'], 'summary': df['Summary']})
     df_explore['x'] = umap_embeds[:, 0]
     df_explore['y'] = umap_embeds[:, 1]
 
-    #mapping = {'Astrophysics':0, 'Mathematics':1, 'q-bio':2, 'Economics':3, 'Statistics':4, 'Query': 5}
-    #df_explore['subject'] = df_explore['subject'].map(mapping)
+    # mapping = {'Astrophysics':0, 'Mathematics':1, 'q-bio':2, 'Economics':3, 'Statistics':4, 'Query': 5}
+    # df_explore['subject'] = df_explore['subject'].map(mapping)
 
     # Plot
     fig = px.scatter(df_explore, x='x', y='y', color='subject', hover_data=['title'])
@@ -102,25 +106,9 @@ def plot2DChart(df, umap_embeds, clusters=None):
 
         ))
 
+
+
     fig.data = fig.data[::-1]
-
-    '''fig.add_trace(go.Scatter(x=df_explore['x'],
-                             y=df_explore['y'],
-                             mode="markers",
-                             marker_color=df_explore['subject'],
-                             text=df_explore['title'],
-                             showlegend=True))'''
-
-
-    # Add the clusters
-    ''' for cluster in clusters:
-        x0, y0, x1, y1 = cluster
-        fig.add_shape(type="circle",
-            xref="x", yref="y",
-            x0=x0, y0=y0, x1=x1, y1=y1,
-            line_color="LightSeaGreen",
-
-            )'''
 
     return fig
 
@@ -226,7 +214,7 @@ def main():
     umap_embeds = reducer.fit_transform(all_embeddings)
 
     # Plot points on 2d chart
-    plot2DChart(df, umap_embeds)
+    #plot2DChart(df, umap_embeds)
 
 
 if __name__ == '__main__':
