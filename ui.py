@@ -11,6 +11,7 @@ from main import *
 import copy
 
 # Download stop words
+nltk.download('punkt')
 nltk.download('stopwords')
 
 # Get dataframe
