@@ -2,6 +2,8 @@ import os
 
 from collections import Counter
 import re
+
+import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import cohere
@@ -114,6 +116,7 @@ def plot2DChart(df, umap_embeds, clusters=None):
 
 @st.cache
 def getWordFrequencies():
+    nltk.download('stopwords')
     stopWords = set(stopwords.words("english"))
     df = getDataFrame('data_100.csv')
     df = df.copy(deep=True)
