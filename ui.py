@@ -10,8 +10,10 @@ import plotly.express as px
 from main import *
 import copy
 
-# Get dataframe
+# Download stop words
+nltk.download('stopwords')
 
+# Get dataframe
 df = getDataFrame('data_100_with_link.csv')
 
 st.title('Semantic Paper Searcher')

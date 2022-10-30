@@ -116,7 +116,7 @@ def plot2DChart(df, umap_embeds, clusters=None):
 
 @st.cache
 def getWordFrequencies():
-    nltk.download('stopwords')
+
     stopWords = set(stopwords.words("english"))
     df = getDataFrame('data_100.csv')
     df = df.copy(deep=True)
