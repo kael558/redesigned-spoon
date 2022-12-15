@@ -3,6 +3,31 @@ The Semantic Search Tool maps research papers into points on a 2-d chart. It clu
 
 The points are clickable so the user can see more information in the sidebar. Also, each step of the slider will show a new cluster added to the selected paper's cluster. This allows the user to see new and relevant clusters to their selected paper. 
 
+## Demo
+
+Click the link for a Demo version hosted by Streamlit: [Demo](https://kael558-redesigned-spoon-ui-em33xz.streamlit.app/)
+
+This is the easiset way to play around and test the application.
+
+## How to Run yourself
+
+### Local
+Install requirements: `pip install -r requirements.txt`
+
+Run: `streamlit run ui.py`
+
+However, we have noticed some version compatibility issues pop up recently so in that case you can use Docker.
+
+### Docker
+
+Enter the correct folder: `cd redesigned-spoon`
+
+Build the docker image: `docker built -t streamlit .`
+
+Run the dockerfile: `docker run -p 8501:8501 streamlit`
+
+This will setup streamlit on port 8501 of localhost.
+
 ## Use cases
  - The user may enter a query and find relevant papers
  - The user may select a paper and find relevant papers
